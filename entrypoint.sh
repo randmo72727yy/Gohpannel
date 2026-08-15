@@ -1,63 +1,32 @@
-#!/bin/bash
-set -euo pipefail
+#!/bin/sh
+set -e
 
-# ---------------------------------------------------------------------------
-# PORT: Railway همیشه این متغیر را تزریق می‌کند. هرگز پورت ثابت فرض نکن.
-# ---------------------------------------------------------------------------
-if [ -z "${PORT:-}" ]; then
-  echo "[FATAL] متغیر PORT توسط محیط تنظیم نشده است. این پروژه باید روی Railway اجرا شود." >&2
-  exit 1
+# حالت تولید کلید REALITY (فقط یک‌بار لازم است اجرا شود)
+# اجرا با: railway run در سرویس، یا با ست کردن Start Command موقت روی: /entrypoint.sh keygen
+if [ "$1" = "keygen" ]; then
+  echo "===================================================="
+  echo " REALITY KEYPAIR - این خروجی را کپی کن و نگه دار"
+  echo "===================================================="
+  xray x25519
+  echo "===================================================="
+  echo " PrivateKey  -> بگذار در متغیر REALITY_PRIVATE_KEY"
+  echo " Password    -> این همان Public Key است، برای ساخت لینک کلاینت (pbk) لازم است"
+  echo "===================================================="
+  # نگه داشتن کانتینر روشن تا لاگ را بخوانی، بعد دستی متوقفش کن
+  sleep 3600
+  exit 0
 fi
 
-# ---------------------------------------------------------------------------
-# UUIDS: لیست UUID با کاما جدا شده. اگر ست نشود، یک UUID تصادفی ساخته می‌شود
-# (توجه: در آن حالت با هر ریست/دیپلوی جدید، UUID عوض می‌شود مگر آن را
-#  به صورت دستی در Environment Variables ست کنید تا ثابت بماند)
-# ---------------------------------------------------------------------------
-if [ -z "${UUIDS:-}" ]; then
-  GEN_UUID=$(cat /proc/sys/kernel/random/uuid)
-  UUIDS="$GEN_UUID"
-  echo "[WARN] متغیر UUIDS ست نشده بود؛ یک UUID موقت ساخته شد: $GEN_UUID"
-  echo "[WARN] برای ثابت ماندن آن بین دیپلوی‌ها، آن را در Railway Variables با کلید UUIDS ست کنید."
-fi
+: "${LISTEN_PORT:?LISTEN_PORT تنظیم نشده - همان پورتی که در Railway TCP Proxy به آن اشاره کردی}"
+: "${UUID:?UUID تنظیم نشده}"
+: "${REALITY_PRIVATE_KEY:?REALITY_PRIVATE_KEY تنظیم نشده - با حالت keygen بسازش}"
+: "${REALITY_DEST:?REALITY_DEST تنظیم نشده - مثال: www.microsoft.com:443}"
+: "${REALITY_SERVER_NAME:?REALITY_SERVER_NAME تنظیم نشده - مثال: www.microsoft.com}"
 
-# ---------------------------------------------------------------------------
-# WS_PATH: مسیر WebSocket. پیش‌فرض تصادفی و کمی مخفی‌تر از "/ws" ساده.
-# ---------------------------------------------------------------------------
-WS_PATH="${WS_PATH:-/vless-ws}"
+export LISTEN_PORT UUID REALITY_PRIVATE_KEY REALITY_DEST REALITY_SERVER_NAME
+export REALITY_SHORT_ID="${REALITY_SHORT_ID:-}"
 
-# ---------------------------------------------------------------------------
-# ساخت آرایه JSON کلاینت‌ها از لیست UUID (بدون نیاز به jq/python)
-# ---------------------------------------------------------------------------
-CLIENTS_JSON="["
-IFS=',' read -ra UUID_ARR <<< "$UUIDS"
-FIRST=1
-for u in "${UUID_ARR[@]}"; do
-  u_trimmed=$(echo "$u" | xargs)
-  [ -z "$u_trimmed" ] && continue
-  if [ "$FIRST" -eq 0 ]; then
-    CLIENTS_JSON="${CLIENTS_JSON},"
-  fi
-  CLIENTS_JSON="${CLIENTS_JSON}{\"id\":\"${u_trimmed}\",\"level\":0}"
-  FIRST=0
-done
-CLIENTS_JSON="${CLIENTS_JSON}]"
+envsubst < /etc/xray/config.template.json > /etc/xray/config.json
 
-# ---------------------------------------------------------------------------
-# جایگذاری مقادیر در config.template.json و تولید config.json نهایی
-# ---------------------------------------------------------------------------
-sed \
-  -e "s|__PORT__|${PORT}|g" \
-  -e "s|__WS_PATH__|${WS_PATH}|g" \
-  -e "s|__CLIENTS_JSON__|${CLIENTS_JSON}|g" \
-  /app/config.template.json > /app/config.json
-
-echo "----------------------------------------------------------------------"
-echo " VLESS روی Railway آماده اجراست"
-echo " PORT داخلی    : ${PORT}"
-echo " WS PATH       : ${WS_PATH}"
-echo " تعداد UUIDها  : ${#UUID_ARR[@]}"
-echo "----------------------------------------------------------------------"
-
-# اجرای مستقیم هسته Xray؛ هیچ Relay پایتونی/FastAPI در مسیر ترافیک نیست
-exec /app/xray run -c /app/config.json
+echo "Xray در حال اجرا روی 0.0.0.0:${LISTEN_PORT} (VLESS + TCP + REALITY)"
+exec xray run -c /etc/xray/config.json
