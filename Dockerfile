@@ -13,13 +13,14 @@ WORKDIR /tmp/xray
 RUN set -eux; \
     if [ "$XRAY_VERSION" = "latest" ]; then \
         DL_URL=$(curl -fsSL https://api.github.com/repos/XTLS/Xray-core/releases/latest \
-            | grep "browser_download_url.*Xray-linux-64.zip" \
-            | cut -d '"' -f 4); \
+            | grep -E '"browser_download_url": *".*Xray-linux-64\.zip"' \
+            | head -n1 \
+            | sed -E 's/.*"(https:\/\/[^"]+)".*/\1/'); \
     else \
         DL_URL="https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-64.zip"; \
     fi; \
     echo "Downloading: $DL_URL"; \
-    curl -fsSL "$DL_URL" -o xray.zip; \
+    curl -fL --retry 3 "$DL_URL" -o xray.zip; \
     unzip xray.zip -d /tmp/xray-bin; \
     chmod +x /tmp/xray-bin/xray
 
