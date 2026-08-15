@@ -1,0 +1,14 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+numReplicas = 1
+
+# توجه: عمداً هیچ healthcheckPath تعریف نشده است، چون تنها inbound این سرویس
+# VLESS-over-WebSocket روی یک مسیر خاص است، نه یک endpoint HTTP معمولی.
+# اگر بعداً یک health endpoint ساده اضافه کردید، می‌توانید این خط را باز کنید:
+# healthcheckPath = "/health"
+# healthcheckTimeout = 100
