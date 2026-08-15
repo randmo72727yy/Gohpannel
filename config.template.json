@@ -5,17 +5,31 @@
   "inbounds": [
     {
       "listen": "0.0.0.0",
-      "port": __PORT__,
+      "port": ${LISTEN_PORT},
       "protocol": "vless",
       "settings": {
-        "clients": __CLIENTS_JSON__,
+        "clients": [
+          {
+            "id": "${UUID}",
+            "flow": "xtls-rprx-vision"
+          }
+        ],
         "decryption": "none"
       },
       "streamSettings": {
-        "network": "ws",
-        "security": "none",
-        "wsSettings": {
-          "path": "__WS_PATH__"
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "${REALITY_DEST}",
+          "xver": 0,
+          "serverNames": [
+            "${REALITY_SERVER_NAME}"
+          ],
+          "privateKey": "${REALITY_PRIVATE_KEY}",
+          "shortIds": [
+            "${REALITY_SHORT_ID}"
+          ]
         }
       }
     }
@@ -24,6 +38,10 @@
     {
       "protocol": "freedom",
       "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "block"
     }
   ]
 }
