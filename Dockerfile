@@ -6,21 +6,19 @@ FROM alpine:3.20 AS fetcher
 # نسخه ثابت را build arg قابل override می‌کنیم؛ پیش‌فرض = آخرین ریلیز
 ARG XRAY_VERSION=latest
 
-RUN apk add --no-cache curl unzip ca-certificates
+RUN apk add --no-cache curl unzip ca-certificates file
 
 WORKDIR /tmp/xray
 
 RUN set -eux; \
     if [ "$XRAY_VERSION" = "latest" ]; then \
-        DL_URL=$(curl -fsSL https://api.github.com/repos/XTLS/Xray-core/releases/latest \
-            | grep -E '"browser_download_url": *".*Xray-linux-64\.zip"' \
-            | head -n1 \
-            | sed -E 's/.*"(https:\/\/[^"]+)".*/\1/'); \
+        DL_URL="https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip"; \
     else \
         DL_URL="https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-64.zip"; \
     fi; \
     echo "Downloading: $DL_URL"; \
     curl -fL --retry 3 "$DL_URL" -o xray.zip; \
+    file xray.zip; \
     unzip xray.zip -d /tmp/xray-bin; \
     chmod +x /tmp/xray-bin/xray
 
